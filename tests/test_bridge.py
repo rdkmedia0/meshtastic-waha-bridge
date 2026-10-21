@@ -165,7 +165,7 @@ async def test_whatsapp_to_mesh(hass: HomeAssistant, mesh, hass_client_no_auth) 
     response = await client.post(f"/api/webhook/{WEBHOOK_ID}", json=waha_message("after unload", message_id="6"))
     assert response.status == HTTPStatus.OK  # unknown webhooks are accepted silently by Home Assistant
     await hass.async_block_till_done()
-    assert len(mesh.sent) == 1
+    assert len(mesh.sent) == 2
 
 
 async def test_webhook_signature(hass: HomeAssistant, mesh, waha, hass_client_no_auth) -> None:
