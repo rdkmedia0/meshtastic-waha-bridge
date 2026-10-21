@@ -2,6 +2,13 @@
 
 # Meshtastic WAHA Bridge
 
+> ## Discontinued
+>
+> This bridge is no longer developed or supported. It relies on WAHA, an unofficial WhatsApp automation,
+> and WhatsApp may ban phone numbers used with unofficial clients. The repository is kept read-only for
+> reference; use it at your own risk. The [Telegram bridge](https://github.com/rdkmedia0/meshtastic-telegram-bridge)
+> is the supported way to link a chat with the mesh.
+
 A Home Assistant integration that links a **WhatsApp chat** with a **Meshtastic channel or node**, using a
 [WAHA](https://waha.devlike.pro) (WhatsApp HTTP API) instance that **you host yourself** and the
 [Meshtastic integration](https://github.com/meshtastic/home-assistant).
