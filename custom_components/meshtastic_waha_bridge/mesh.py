@@ -83,11 +83,25 @@ def gateway_node_num(hass: HomeAssistant, gateway_entry_id: str) -> int | None:
     return None
 
 
-def node_display_name(hass: HomeAssistant, node_id: int) -> str:
-    """Return the name of a node as known to Home Assistant, falling back to its user id."""
+def node_display_name(hass: HomeAssistant, node_id: int, gateway_entry_id: str | None = None) -> str:
+    """
+    Return the long name of a node, falling back to its user id.
+
+    Nodes added as devices are named by the device registry (so a name given in Home Assistant wins); every other
+    node is looked up in the gateway's node database.
+    """
     device = dr.async_get(hass).async_get_device(identifiers={(MESHTASTIC_DOMAIN, str(node_id))})
     if device is not None and (device.name_by_user or device.name):
         return device.name_by_user or device.name
+    if gateway_entry_id is not None:
+        entry = hass.config_entries.async_get_entry(gateway_entry_id)
+        client = getattr(getattr(entry, "runtime_data", None), "client", None)
+        get_node_info = getattr(client, "get_node_info", None)
+        if callable(get_node_info):
+            with suppress(Exception):
+                node = get_node_info(node_id)
+                if (name := getattr(node, "long_name", None)) or (name := getattr(node, "short_name", None)):
+                    return str(name)
     return f"!{node_id:08x}"
 
 

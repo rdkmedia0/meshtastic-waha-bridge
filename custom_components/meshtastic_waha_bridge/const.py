@@ -53,6 +53,9 @@ WAHA_MESSAGE_EVENTS: Final = ("message", "message.any")
 WAHA_HMAC_HEADER: Final = "X-Webhook-Hmac"
 WAHA_TIMEOUT: Final = 15
 
+# shown in front of the node name for messages that came over the radio
+MESH_SENDER_EMOJI: Final = "\U0001f6f0\ufe0f"
+
 # Meshtastic text messages are limited to 200 bytes (including any prefix)
 MAX_TEXT_BYTES: Final = 200
 # never send more than this many packets for one WhatsApp message, LoRa airtime is precious

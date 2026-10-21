@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 from http import HTTPStatus
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -225,13 +226,17 @@ async def test_mesh_to_whatsapp(hass: HomeAssistant, mesh, waha, hass_client_no_
     fire_mesh(hass, "other-gateway", text="other gateway", message_id=13)
     await hass.async_block_till_done()
 
-    assert sent_to_whatsapp(waha) == [{"session": "default", "chatId": GROUP, "text": "*Anna Hiking*: hello"}]
+    assert sent_to_whatsapp(waha) == [
+        {"session": "default", "chatId": GROUP, "text": "*\U0001f6f0\ufe0f Anna Hiking*: hello"}
+    ]
     headers = next(call[3] for call in waha.mock_calls if call[0] == "POST")
     assert headers["X-Api-Key"] == "key"
 
     # WAHA reports the message the bridge just posted as fromMe: it must not be forwarded back to the mesh
     client = await hass_client_no_auth()
-    echo = waha_message("*Anna Hiking*: hello", from_me=True, name=None, participant=None, message_id="echo")
+    echo = waha_message(
+        "*\U0001f6f0\ufe0f Anna Hiking*: hello", from_me=True, name=None, participant=None, message_id="echo"
+    )
     assert await post_webhook(client, echo) == HTTPStatus.OK
     await hass.async_block_till_done()
     assert mesh.sent == []
@@ -251,6 +256,10 @@ async def test_mesh_to_whatsapp_failure_is_logged(hass: HomeAssistant, mesh, aio
 
 async def test_node_target_and_direction(hass: HomeAssistant, mesh, waha, hass_client_no_auth) -> None:
     await setup_bridge(hass, mesh, **{CONF_TARGET_TYPE: "node", CONF_NODE_ID: str(ANNA)})
+    # nodes that are not Home Assistant devices are named through the gateway's node database
+    mesh.gateway.runtime_data.client = SimpleNamespace(
+        get_node_info=lambda node: SimpleNamespace(long_name="Bob Builder", short_name="BOB") if node == ANNA else None
+    )
     client = await hass_client_no_auth()
 
     await post_webhook(client, waha_message("ping"))
@@ -261,7 +270,7 @@ async def test_node_target_and_direction(hass: HomeAssistant, mesh, waha, hass_c
     assert mesh.sent == [
         {"from": str(GATEWAY), "to": str(ANNA), "text": "Alice: ping", "ack": False, "sent_by": "WhatsApp: Alice"}
     ]
-    assert [m["text"] for m in sent_to_whatsapp(waha)] == ["*!a1b2c3d4*: pong"]
+    assert [m["text"] for m in sent_to_whatsapp(waha)] == ["*\U0001f6f0\ufe0f Bob Builder*: pong"]
 
 
 async def test_direction_options(hass: HomeAssistant, mesh, waha, hass_client_no_auth) -> None:
