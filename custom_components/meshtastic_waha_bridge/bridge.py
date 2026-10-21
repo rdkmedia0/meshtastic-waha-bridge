@@ -37,13 +37,23 @@ from .const import (
     DIRECTION_TO_MESH,
     DIRECTION_TO_WHATSAPP,
     DOMAIN,
+    EVENT_MESHTASTIC_CHAT_MESSAGE_SENT,
     EVENT_MESHTASTIC_TEXT_MESSAGE,
     MAX_SENDER_NAME,
+    SENT_BY_PREFIX,
     TARGET_CHANNEL,
     WAHA_HMAC_HEADER,
     WAHA_MESSAGE_EVENTS,
 )
-from .mesh import MeshSender, MeshTarget, mesh_event_message, node_display_name, parse_node_id, split_text
+from .mesh import (
+    MeshSender,
+    MeshTarget,
+    chat_sent_event_message,
+    mesh_event_message,
+    node_display_name,
+    parse_node_id,
+    split_text,
+)
 from .waha import WahaError
 
 if TYPE_CHECKING:
@@ -117,6 +127,9 @@ class WahaMeshBridge:
             self._webhook_registered = True
         if self.direction != DIRECTION_TO_MESH:
             self._unsubscribe.append(self.hass.bus.async_listen(EVENT_MESHTASTIC_TEXT_MESSAGE, self._on_mesh_text))
+            self._unsubscribe.append(
+                self.hass.bus.async_listen(EVENT_MESHTASTIC_CHAT_MESSAGE_SENT, self._on_chat_message_sent)
+            )
 
     async def async_unload(self) -> None:
         for unsubscribe in self._unsubscribe:
@@ -236,6 +249,31 @@ class WahaMeshBridge:
 
         if self.entry.options.get(CONF_PREFIX_MESH_SENDER, DEFAULT_PREFIX_MESH_SENDER):
             message = f"*{node_display_name(self.hass, from_id)}*: {text}"
+        else:
+            message = text
+        self._enqueue(lambda: self._async_send_whatsapp(message))
+
+    @callback
+    def _on_chat_message_sent(self, event: Event) -> None:
+        """Mirror messages sent from Home Assistant (the Mesh Chat panel, actions, other bridges)."""
+        if self.sender.gateway_num is None:
+            return
+        match = chat_sent_event_message(
+            event.data,
+            gateway_entry_id=self.entry.data[CONF_GATEWAY_ENTRY_ID],
+            target=self.target,
+            own_prefix=SENT_BY_PREFIX,
+        )
+        if match is None:
+            return
+        key = ("sent", event.data.get("message_id"))
+        if key in self._seen:
+            return
+        self._seen.append(key)
+        sent_by, text = match
+        label = sent_by or node_display_name(self.hass, self.sender.gateway_num)
+        if self.entry.options.get(CONF_PREFIX_MESH_SENDER, DEFAULT_PREFIX_MESH_SENDER):
+            message = f"*{label}*: {text}"
         else:
             message = text
         self._enqueue(lambda: self._async_send_whatsapp(message))

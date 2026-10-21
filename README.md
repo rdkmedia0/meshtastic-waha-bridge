@@ -23,6 +23,8 @@ A Home Assistant integration that links a WhatsApp chat with a Meshtastic channe
 
 - Messages written in the WhatsApp chat are sent to the mesh through a gateway of the Meshtastic integration,
   prefixed with the sender's name.
+- Messages sent from Home Assistant to that channel or node (the Mesh Chat panel, automations, another
+  bridge) are posted too, labelled with who sent them. Requires Mesh Chat test build 4 or newer.
 - Messages received from the mesh are posted in the WhatsApp chat, prefixed with the node's name.
 - Each bridge links one chat (group or contact) with one channel, or one node for direct messages. Add the
   integration several times to bridge more chats.

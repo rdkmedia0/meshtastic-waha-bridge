@@ -166,6 +166,32 @@ def mesh_event_message(
     return int(from_id), str(text)
 
 
+def chat_sent_event_message(
+    event_data: Mapping[str, Any], *, gateway_entry_id: str, target: MeshTarget, own_prefix: str
+) -> tuple[str | None, str] | None:
+    """
+    Return (sent_by label, text) when a message sent from Home Assistant belongs to the bridged conversation.
+
+    Messages this bridge sent itself (their label starts with ``own_prefix``) are skipped so they are not mirrored
+    back to the chat they came from.
+    """
+    if event_data.get("config_entry_id") != gateway_entry_id:
+        return None
+    to = event_data.get("to") or {}
+    text = event_data.get("message")
+    if not text:
+        return None
+    if target.is_channel:
+        if to.get("channel") != target.channel_index:
+            return None
+    elif to.get("node") != target.node_id:
+        return None
+    sent_by = event_data.get("sent_by") or None
+    if sent_by and sent_by.startswith(own_prefix):
+        return None
+    return sent_by, str(text)
+
+
 class MeshSender:
     """Sends text through the Meshtastic integration's ``send_text`` action."""
 
