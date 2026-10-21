@@ -22,8 +22,8 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
-      - name: "Install requirements"
-        run: python3 -m pip install -r requirements.txt pytest-homeassistant-custom-component
+      - name: "Install the Home Assistant test harness"
+        run: python3 -m pip install pytest-homeassistant-custom-component
 
       - name: "Run tests"
         run: python3 -m pytest tests -q
