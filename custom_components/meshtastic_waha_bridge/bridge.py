@@ -98,6 +98,8 @@ class WahaMeshBridge:
         self._webhook_registered = False
         self._seen: deque[Any] = deque(maxlen=DEDUPLICATE_WINDOW)
         self._names: dict[str, str] = {}
+        # texts this bridge posted to WhatsApp, so they are not forwarded back when WAHA reports them as fromMe
+        self._posted: deque[str] = deque(maxlen=DEDUPLICATE_WINDOW)
         # messages are forwarded one after the other, in the order they arrived
         self._outbox: deque[Callable[[], Awaitable[None]]] = deque()
         self._drain_task: asyncio.Task[None] | None = None
@@ -175,25 +177,42 @@ class WahaMeshBridge:
             self._enqueue(lambda: self._async_process_waha_event(event))
         return web.Response(status=HTTPStatus.OK, text="ok")
 
-    async def _async_process_waha_event(self, event: Mapping[str, Any]) -> None:
-        if event.get("event") not in WAHA_MESSAGE_EVENTS:
+    async def _async_process_waha_event(self, event: Mapping[str, Any]) -> None:  # noqa: PLR0911
+        event_type = event.get("event")
+        if event_type not in WAHA_MESSAGE_EVENTS:
+            _LOGGER.debug("Ignoring WAHA event %s", event_type)
             return
         payload = event.get("payload") or {}
-        if not isinstance(payload, dict) or payload.get("fromMe") or payload.get("source") == "api":
+        if not isinstance(payload, dict):
             return
-        if payload.get("from") != self.chat_id:
+        chat = payload.get("from")
+        if chat != self.chat_id:
+            _LOGGER.debug("Ignoring message in chat %s, this bridge is for %s", chat, self.chat_id)
             return
         text = str(payload.get("body") or "").strip()
         if not text:
-            return  # media, stickers, reactions ...
+            _LOGGER.debug("Ignoring message without text (media, sticker, reaction ...)")
+            return
+        if payload.get("source") == "api":
+            _LOGGER.debug("Ignoring message sent through the WAHA API: %s", text[:40])
+            return
+        if payload.get("fromMe") and text in self._posted:
+            _LOGGER.debug("Ignoring message this bridge posted itself: %s", text[:40])
+            return
         message_id = payload.get("id")
         if message_id is not None:
             if message_id in self._seen:
+                _LOGGER.debug("Ignoring message %s reported twice", message_id)
                 return
             self._seen.append(message_id)
 
-        sender_id = str(payload.get("participant") or payload.get("from") or "")
-        name = await self._async_sender_name(payload, sender_id)
+        if payload.get("fromMe"):
+            sender_id = str((event.get("me") or {}).get("id") or payload.get("to") or "")
+            name = await self._async_sender_name({**payload, "_data": {}}, sender_id, me=event.get("me"))
+        else:
+            sender_id = str(payload.get("participant") or payload.get("from") or "")
+            name = await self._async_sender_name(payload, sender_id)
+        _LOGGER.debug("Forwarding message from %s in %s to the mesh", name, chat)
         prefix = (
             f"{name}: " if self.entry.options.get(CONF_PREFIX_WHATSAPP_SENDER, DEFAULT_PREFIX_WHATSAPP_SENDER) else ""
         )
@@ -213,12 +232,14 @@ class WahaMeshBridge:
             )
         await self.sender.async_send(self.target, chunks, sent_by=f"WhatsApp: {name}")
 
-    async def _async_sender_name(self, payload: Mapping[str, Any], sender_id: str) -> str:
+    async def _async_sender_name(
+        self, payload: Mapping[str, Any], sender_id: str, *, me: Mapping[str, Any] | None = None
+    ) -> str:
         engine_data = payload.get("_data") or {}
         raw = None
         if isinstance(engine_data, dict):
             raw = engine_data.get("notifyName") or engine_data.get("pushName") or engine_data.get("PushName")
-        raw = raw or payload.get("pushName") or payload.get("notifyName")
+        raw = raw or payload.get("pushName") or payload.get("notifyName") or (me or {}).get("pushName")
         if not raw and sender_id:
             if sender_id not in self._names:
                 self._names[sender_id] = await self.client.async_contact_name(sender_id) or ""
@@ -279,6 +300,7 @@ class WahaMeshBridge:
         self._enqueue(lambda: self._async_send_whatsapp(message))
 
     async def _async_send_whatsapp(self, message: str) -> None:
+        self._posted.append(message)
         try:
             await self.client.async_send_text(self.chat_id, message)
         except WahaError as err:

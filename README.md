@@ -62,7 +62,7 @@ restart Home Assistant.
    docker run -d --name waha -p 3000:3000 \
      -e WHATSAPP_API_KEY=change-me \
      -e WHATSAPP_HOOK_URL=https://your-home-assistant/api/webhook/<id> \
-     -e WHATSAPP_HOOK_EVENTS=message \
+     -e WHATSAPP_HOOK_EVENTS=message.any \
      -e WHATSAPP_HOOK_HMAC_KEY=change-me-too \
      devlikeapro/waha
    ```
@@ -97,8 +97,10 @@ Open the bridge's entry → **Configure**.
 - Meshtastic text messages are limited to 200 bytes including the prefix. A busy WhatsApp group can quickly use up
   LoRa airtime; long messages are split into at most 5 packets, the rest is dropped and logged.
 - Every message sent to the mesh comes from the gateway node. The prefix tells mesh users who wrote it.
-- Messages sent by the WAHA account itself (`fromMe`), including the ones this bridge posts, are never forwarded
-  to the mesh, and messages the gateway sends are never forwarded to WhatsApp, so a bridge cannot loop.
+- Subscribe WAHA to `message.any`, not just `message`: only `message.any` includes messages you send from the
+  WhatsApp account WAHA is logged in as, which is usually your own phone.
+- Messages posted by this bridge (and anything sent through WAHA's API) are never forwarded back to the mesh,
+  and messages the gateway sends are never forwarded to WhatsApp, so a bridge cannot loop.
 - The sender's name comes from the WhatsApp push name in the webhook payload, or from WAHA's contact list.
   Without either, the phone number is used.
 - Media, stickers, reactions and messages without text are ignored.
@@ -108,9 +110,10 @@ Open the bridge's entry → **Configure**.
 
 ## Troubleshooting
 
-- *Nothing arrives on the mesh*: check WAHA's webhook configuration and logs; the webhook must receive `message`
-  events and WAHA must be able to reach the URL. With an HMAC key configured, rejected calls are logged by
-  Home Assistant.
+- *Nothing arrives on the mesh*: check WAHA's webhook configuration and logs; the webhook must receive
+  `message.any` events and WAHA must be able to reach the URL. With an HMAC key configured, rejected calls are
+  logged by Home Assistant. With debug logging enabled, the bridge logs why it ignores an event (wrong chat,
+  no text, sent through the API).
 - *Nothing arrives in WhatsApp*: check that the WAHA session is `WORKING` and that the chat ID is right. Errors from
   WAHA are logged as warnings.
 - *The bridge shows "not ready"*: WAHA or the Meshtastic gateway could not be reached. The bridge retries.

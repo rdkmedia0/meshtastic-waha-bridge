@@ -139,13 +139,26 @@ async def test_whatsapp_to_mesh(hass: HomeAssistant, mesh, hass_client_no_auth) 
     assert await post_webhook(client, waha_message("  on my way ")) == HTTPStatus.OK
     assert await post_webhook(client, waha_message("on my way")) == HTTPStatus.OK  # WAHA retried the same message
     assert await post_webhook(client, waha_message("other chat", chat="1@g.us", message_id="2")) == HTTPStatus.OK
-    assert await post_webhook(client, waha_message("mine", from_me=True, message_id="3")) == HTTPStatus.OK
     assert await post_webhook(client, waha_message("", message_id="4")) == HTTPStatus.OK  # media only
     assert await post_webhook(client, waha_message("ack", event="message.ack", message_id="5")) == HTTPStatus.OK
+    api_sent = waha_message("via api", from_me=True, message_id="6", event="message.any")
+    api_sent["payload"]["source"] = "api"
+    assert await post_webhook(client, api_sent) == HTTPStatus.OK
+    # a message typed on the phone WAHA is logged in as
+    mine = waha_message("mine from my phone", from_me=True, name=None, participant=None, message_id="7")
+    mine["me"] = {"id": "4915100000000@c.us", "pushName": "Steve"}
+    assert await post_webhook(client, mine) == HTTPStatus.OK
     await hass.async_block_till_done()
 
     assert mesh.sent == [
-        {"from": str(GATEWAY), "channel": "1", "text": "Alice: on my way", "ack": False, "sent_by": "WhatsApp: Alice"}
+        {"from": str(GATEWAY), "channel": "1", "text": "Alice: on my way", "ack": False, "sent_by": "WhatsApp: Alice"},
+        {
+            "from": str(GATEWAY),
+            "channel": "1",
+            "text": "Steve: mine from my phone",
+            "ack": False,
+            "sent_by": "WhatsApp: Steve",
+        },
     ]
 
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -198,7 +211,7 @@ async def test_sender_name_lookup(hass: HomeAssistant, mesh, waha, hass_client_n
     assert len(lookups) == 2
 
 
-async def test_mesh_to_whatsapp(hass: HomeAssistant, mesh, waha) -> None:
+async def test_mesh_to_whatsapp(hass: HomeAssistant, mesh, waha, hass_client_no_auth) -> None:
     await setup_bridge(hass, mesh)
     dr.async_get(hass).async_get_or_create(
         config_entry_id=mesh.gateway.entry_id, identifiers={("meshtastic", str(ANNA))}, name="Anna Hiking"
@@ -214,6 +227,13 @@ async def test_mesh_to_whatsapp(hass: HomeAssistant, mesh, waha) -> None:
     assert sent_to_whatsapp(waha) == [{"session": "default", "chatId": GROUP, "text": "*Anna Hiking*: hello"}]
     headers = next(call[3] for call in waha.mock_calls if call[0] == "POST")
     assert headers["X-Api-Key"] == "key"
+
+    # WAHA reports the message the bridge just posted as fromMe: it must not be forwarded back to the mesh
+    client = await hass_client_no_auth()
+    echo = waha_message("*Anna Hiking*: hello", from_me=True, name=None, participant=None, message_id="echo")
+    assert await post_webhook(client, echo) == HTTPStatus.OK
+    await hass.async_block_till_done()
+    assert mesh.sent == []
 
 
 async def test_mesh_to_whatsapp_failure_is_logged(hass: HomeAssistant, mesh, aioclient_mock, caplog) -> None:

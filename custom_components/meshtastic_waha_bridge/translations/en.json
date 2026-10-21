@@ -37,7 +37,7 @@
       },
       "webhook": {
         "title": "Point WAHA at Home Assistant",
-        "description": "Keep the generated webhook ID and configure WAHA to send `message` events to\n\n`{webhook_url}`\n\n(per session, or with WHATSAPP_HOOK_URL and WHATSAPP_HOOK_EVENTS=message). Or, if WAHA already calls a Home Assistant webhook, paste that webhook's ID or full URL below to reuse it. A webhook can only have one handler, so an automation that used it must stay disabled. The URL is shown again in the bridge options.",
+        "description": "Keep the generated webhook ID and configure WAHA to send `message.any` events to\n\n`{webhook_url}`\n\n(per session, or with WHATSAPP_HOOK_URL and WHATSAPP_HOOK_EVENTS=message.any). `message.any` includes messages you send from the WhatsApp account WAHA uses; `message` alone does not. Or, if WAHA already calls a Home Assistant webhook, paste that webhook's ID or full URL below to reuse it. A webhook can only have one handler, so an automation that used it must stay disabled. The URL is shown again in the bridge options.",
         "data": {
           "webhook_id": "Webhook ID or URL"
         }
@@ -64,7 +64,7 @@
     "step": {
       "init": {
         "title": "Bridge options",
-        "description": "Webhook for WAHA `message` events: `{webhook_url}`",
+        "description": "Webhook for WAHA `message.any` events: `{webhook_url}`",
         "data": {
           "direction": "Direction",
           "prefix_whatsapp_sender": "Prefix mesh messages with the WhatsApp sender's name",
