@@ -63,6 +63,26 @@ def webhook_url(hass: HomeAssistant, webhook_id: str) -> str:
         return webhook.async_generate_path(webhook_id)
 
 
+def parse_webhook_id(value: str) -> str:
+    """Accept a webhook ID or a full webhook URL and return the ID."""
+    value = value.strip().split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    marker = "/api/webhook/"
+    if marker in value:
+        value = value.split(marker, 1)[1]
+    return value.strip().strip("/")
+
+
+def webhook_in_use(hass: HomeAssistant, webhook_id: str) -> bool:
+    """Whether another integration or automation already handles this webhook."""
+    return webhook_id in hass.data.get("webhook", {})
+
+
+def _webhook_schema(defaults: dict[str, Any]) -> vol.Schema:
+    return vol.Schema(
+        {vol.Required(CONF_WEBHOOK_ID, default=defaults.get(CONF_WEBHOOK_ID, vol.UNDEFINED)): selector.TextSelector()}
+    )
+
+
 def _user_schema(defaults: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
@@ -246,20 +266,32 @@ class MeshtasticWahaBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
-                self._data = {**self._connection, **data, CONF_WEBHOOK_ID: webhook.async_generate_id()}
+                self._data = {**self._connection, **data}
                 return await self.async_step_webhook()
         return self.async_show_form(
             step_id="target", data_schema=_target_schema(self.hass, user_input or {}), errors=errors
         )
 
     async def async_step_webhook(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Use a generated webhook, or one WAHA already calls (its ID or full URL)."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            title = f"WhatsApp {self._data[CONF_WHATSAPP_CHAT_ID]} and {_target_label(self._data)}"
-            return self.async_create_entry(title=title, data=self._data, options={})
+            webhook_id = parse_webhook_id(str(user_input.get(CONF_WEBHOOK_ID) or ""))
+            if not webhook_id:
+                errors[CONF_WEBHOOK_ID] = "invalid_webhook_id"
+            elif webhook_in_use(self.hass, webhook_id):
+                errors[CONF_WEBHOOK_ID] = "webhook_in_use"
+            else:
+                self._data[CONF_WEBHOOK_ID] = webhook_id
+                title = f"WhatsApp {self._data[CONF_WHATSAPP_CHAT_ID]} and {_target_label(self._data)}"
+                return self.async_create_entry(title=title, data=self._data, options={})
+        defaults = dict(user_input or {})
+        defaults.setdefault(CONF_WEBHOOK_ID, webhook.async_generate_id())
         return self.async_show_form(
             step_id="webhook",
-            data_schema=vol.Schema({}),
-            description_placeholders={"webhook_url": webhook_url(self.hass, self._data[CONF_WEBHOOK_ID])},
+            data_schema=_webhook_schema(defaults),
+            errors=errors,
+            description_placeholders={"webhook_url": webhook_url(self.hass, defaults[CONF_WEBHOOK_ID])},
         )
 
     @staticmethod

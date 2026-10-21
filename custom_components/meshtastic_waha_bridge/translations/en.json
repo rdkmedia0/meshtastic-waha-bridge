@@ -37,7 +37,10 @@
       },
       "webhook": {
         "title": "Point WAHA at Home Assistant",
-        "description": "Configure WAHA to send `message` events to this webhook (per session or with WHATSAPP_HOOK_URL and WHATSAPP_HOOK_EVENTS=message):\n\n`{webhook_url}`\n\nWAHA must be able to reach this address. If you entered an HMAC key, set WHATSAPP_HOOK_HMAC_KEY to the same value in WAHA. The URL is shown again in the bridge options."
+        "description": "Keep the generated webhook ID and configure WAHA to send `message` events to\n\n`{webhook_url}`\n\n(per session, or with WHATSAPP_HOOK_URL and WHATSAPP_HOOK_EVENTS=message). Or, if WAHA already calls a Home Assistant webhook, paste that webhook's ID or full URL below to reuse it. A webhook can only have one handler, so an automation that used it must stay disabled. The URL is shown again in the bridge options.",
+        "data": {
+          "webhook_id": "Webhook ID or URL"
+        }
       }
     },
     "error": {
@@ -47,6 +50,8 @@
       "session_not_found": "This session does not exist in WAHA. Start and pair it first.",
       "unknown": "WAHA answered with an unexpected error.",
       "invalid_chat_id": "Enter a chat ID like 1203630123@g.us, 4915112345678@c.us or a phone number.",
+      "invalid_webhook_id": "Enter a webhook ID or a URL like https://your-home-assistant/api/webhook/<id>.",
+      "webhook_in_use": "This webhook is already handled by another integration or an enabled automation. Disable that automation first, or use a different ID.",
       "node_id_required": "Enter the node to exchange direct messages with.",
       "invalid_node_id": "Enter a user ID like !a1b2c3d4 or a node number."
     },

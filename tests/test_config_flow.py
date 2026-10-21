@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.components import webhook
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.meshtastic_waha_bridge.config_flow import normalise_chat_id
+from custom_components.meshtastic_waha_bridge.config_flow import normalise_chat_id, parse_webhook_id
 from custom_components.meshtastic_waha_bridge.const import (
     CONF_ACKNOWLEDGED,
     CONF_API_KEY,
@@ -88,12 +89,23 @@ async def test_full_flow(hass: HomeAssistant) -> None:
     assert result["type"] == "form"
     assert result["step_id"] == "webhook"
     assert "/api/webhook/" in result["description_placeholders"]["webhook_url"]
+    generated = result["data_schema"]({})[CONF_WEBHOOK_ID]
+    assert generated
 
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={})
+    # a webhook that an enabled automation or another integration handles cannot be reused
+    webhook.async_register(hass, "other", "other", "taken", lambda *_: None)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={CONF_WEBHOOK_ID: "http://ha.local:8123/api/webhook/taken"}
+    )
+    assert result["errors"] == {CONF_WEBHOOK_ID: "webhook_in_use"}
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={CONF_WEBHOOK_ID: " "})
+    assert result["errors"] == {CONF_WEBHOOK_ID: "invalid_webhook_id"}
+
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={CONF_WEBHOOK_ID: generated})
     assert result["type"] == "create_entry"
     assert result["title"] == f"WhatsApp {GROUP} and channel 2"
     data = result["data"]
-    assert data[CONF_WEBHOOK_ID]
+    assert data[CONF_WEBHOOK_ID] == generated
     del data[CONF_WEBHOOK_ID]
     assert data == {
         CONF_WAHA_URL: WAHA_URL,
@@ -161,8 +173,18 @@ async def test_target_errors(hass: HomeAssistant) -> None:
         },
     )
     assert result["step_id"] == "webhook"
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input={})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={CONF_WEBHOOK_ID: "https://ha.example.com/api/webhook/my-waha-hook/"}
+    )
     assert result["title"] == "WhatsApp 4915112345678@c.us and node !a1b2c3d4"
+    assert result["data"][CONF_WEBHOOK_ID] == "my-waha-hook"
+
+
+def test_parse_webhook_id() -> None:
+    assert parse_webhook_id(" abc-123 ") == "abc-123"
+    assert parse_webhook_id("https://ha.example.com/api/webhook/abc-123") == "abc-123"
+    assert parse_webhook_id("http://192.168.1.5:8123/api/webhook/abc-123/?x=1") == "abc-123"
+    assert parse_webhook_id("") == ""
 
 
 def test_normalise_chat_id() -> None:

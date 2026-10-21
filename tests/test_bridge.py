@@ -11,8 +11,10 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from homeassistant.components import webhook
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import device_registry as dr
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.meshtastic_waha_bridge.bridge import sender_label
@@ -286,6 +288,15 @@ async def test_setup_errors(hass: HomeAssistant, mesh, aioclient_mock) -> None:
     aioclient_mock.get(f"{WAHA_URL}/api/sessions/default", json={"status": "WORKING"})
     entry = await setup_bridge(hass, mesh, **{CONF_WHATSAPP_CHAT_ID: "3@g.us", CONF_GATEWAY_ENTRY_ID: "missing"})
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+@pytest.mark.usefixtures("waha")
+async def test_webhook_already_in_use(hass: HomeAssistant, mesh) -> None:
+    await async_setup_component(hass, "webhook", {})
+    webhook.async_register(hass, "other", "other", WEBHOOK_ID, lambda *_: None)
+    entry = await setup_bridge(hass, mesh)
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    assert "already used" in str(entry.reason)
 
 
 def test_sender_label() -> None:

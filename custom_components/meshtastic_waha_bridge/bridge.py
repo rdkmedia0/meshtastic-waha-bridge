@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import web
 from homeassistant.components import webhook
 from homeassistant.core import callback
+from homeassistant.exceptions import ConfigEntryError
 
 from .const import (
     CONF_CHANNEL_INDEX,
@@ -98,14 +99,21 @@ class WahaMeshBridge:
     async def async_setup(self) -> None:
         await self.sender.async_setup()
         if self.direction != DIRECTION_TO_WHATSAPP:
-            webhook.async_register(
-                self.hass,
-                DOMAIN,
-                f"Meshtastic WAHA bridge: {self.entry.title}",
-                self.webhook_id,
-                self.async_handle_webhook,
-                allowed_methods=["POST"],
-            )
+            try:
+                webhook.async_register(
+                    self.hass,
+                    DOMAIN,
+                    f"Meshtastic WAHA bridge: {self.entry.title}",
+                    self.webhook_id,
+                    self.async_handle_webhook,
+                    allowed_methods=["POST"],
+                )
+            except ValueError as err:
+                msg = (
+                    f"Webhook {self.webhook_id} is already used by another integration or an automation. "
+                    "Disable that automation or reconfigure the bridge with a different webhook."
+                )
+                raise ConfigEntryError(msg) from err
             self._webhook_registered = True
         if self.direction != DIRECTION_TO_MESH:
             self._unsubscribe.append(self.hass.bus.async_listen(EVENT_MESHTASTIC_TEXT_MESSAGE, self._on_mesh_text))
