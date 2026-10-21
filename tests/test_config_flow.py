@@ -123,6 +123,7 @@ async def test_full_flow(hass: HomeAssistant) -> None:
 )
 async def test_connection_errors(hass: HomeAssistant, aioclient_mock, status, expected) -> None:
     aioclient_mock.get(f"{WAHA_URL}/api/sessions/default", status=status, text="nope")
+    aioclient_mock.get(f"{WAHA_URL}/api/sessions", params={"all": "true"}, status=status, text="nope")
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input=CONNECTION)
     assert result["type"] == "form"

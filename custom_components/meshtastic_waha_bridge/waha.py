@@ -38,10 +38,18 @@ class WahaResponseError(WahaError):
     """WAHA answered with an error."""
 
 
+def normalise_base_url(url: str) -> str:
+    """Strip a trailing slash and a trailing ``/api``, which people copy from WAHA's dashboard URL."""
+    url = url.strip().rstrip("/")
+    if url.lower().endswith("/api"):
+        url = url[:-4]
+    return url.rstrip("/")
+
+
 class WahaClient:
     def __init__(self, session: aiohttp.ClientSession, base_url: str, api_key: str | None, waha_session: str) -> None:
         self._session = session
-        self.base_url = base_url.rstrip("/")
+        self.base_url = normalise_base_url(base_url)
         self._api_key = api_key
         self.waha_session = waha_session
 
@@ -85,8 +93,21 @@ class WahaClient:
             raise WahaConnectionError(str(err)) from err
 
     async def async_get_session(self) -> dict[str, Any]:
-        """Return the state of the WhatsApp session, e.g. ``{"name": "default", "status": "WORKING"}``."""
-        data = await self._request("GET", f"/api/sessions/{self.waha_session}")
+        """
+        Return the state of the WhatsApp session, e.g. ``{"name": "default", "status": "WORKING"}``.
+
+        Older WAHA versions have no single-session endpoint, so the session list is used as a fallback.
+        """
+        try:
+            data = await self._request("GET", f"/api/sessions/{self.waha_session}")
+        except WahaNotFoundError:
+            sessions = await self._request("GET", "/api/sessions", params={"all": "true"})
+            if not isinstance(sessions, list):
+                raise
+            for session in sessions:
+                if isinstance(session, dict) and session.get("name") == self.waha_session:
+                    return session
+            raise
         return data if isinstance(data, dict) else {}
 
     async def async_send_text(self, chat_id: str, text: str) -> None:
