@@ -1,0 +1,95 @@
+{
+  "title": "Meshtastic WAHA Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to your WAHA instance",
+        "description": "Important: WAHA (WhatsApp HTTP API) is an independent third-party project that automates WhatsApp through unofficial means. It is not affiliated with this integration, the Meshtastic integration or Home Assistant. You host WAHA yourself and are solely responsible for complying with WhatsApp's Terms of Service. WhatsApp may suspend or ban phone numbers used with unofficial clients. The authors of this integration provide no support for WAHA and accept no liability for its use.",
+        "data": {
+          "acknowledged": "I host WAHA myself, I have read the WhatsApp Terms of Service and I accept the risk",
+          "waha_url": "WAHA URL",
+          "api_key": "WAHA API key",
+          "session": "WAHA session",
+          "hmac_key": "Webhook HMAC key"
+        },
+        "data_description": {
+          "waha_url": "Base URL of your WAHA instance, e.g. http://192.168.1.10:3000",
+          "api_key": "The value of WHATSAPP_API_KEY of your WAHA instance, if set.",
+          "session": "Name of the WhatsApp session in WAHA (usually \"default\"). It must be started and paired.",
+          "hmac_key": "Optional. If WAHA signs webhooks (WHATSAPP_HOOK_HMAC_KEY), enter the same key so unsigned calls are rejected."
+        }
+      },
+      "target": {
+        "title": "Choose the chat and the mesh target",
+        "description": "Messages in the WhatsApp chat are sent to the mesh through the selected gateway, and messages from the mesh are posted in the chat.",
+        "data": {
+          "whatsapp_chat_id": "WhatsApp chat ID",
+          "gateway_entry_id": "Meshtastic gateway",
+          "target_type": "Mesh target",
+          "channel_index": "Channel index",
+          "node_id": "Node"
+        },
+        "data_description": {
+          "whatsapp_chat_id": "A group ID like 120363012345678901@g.us, a contact like 4915112345678@c.us or a bare phone number. Group IDs are listed by WAHA under GET /api/{session}/groups.",
+          "channel_index": "Index of the channel on the gateway (0 is the primary channel). Only used for a channel target.",
+          "node_id": "Meshtastic user ID (e.g. !a1b2c3d4) or node number. Only used for a node target: messages are exchanged as direct messages with this node."
+        }
+      },
+      "webhook": {
+        "title": "Point WAHA at Home Assistant",
+        "description": "Configure WAHA to send `message` events to this webhook (per session or with WHATSAPP_HOOK_URL and WHATSAPP_HOOK_EVENTS=message):\n\n`{webhook_url}`\n\nWAHA must be able to reach this address. If you entered an HMAC key, set WHATSAPP_HOOK_HMAC_KEY to the same value in WAHA. The URL is shown again in the bridge options."
+      }
+    },
+    "error": {
+      "must_acknowledge": "Please confirm that you host WAHA yourself and accept the terms and the risk.",
+      "cannot_connect": "WAHA could not be reached at this URL.",
+      "invalid_auth": "WAHA rejected the API key.",
+      "session_not_found": "This session does not exist in WAHA. Start and pair it first.",
+      "unknown": "WAHA answered with an unexpected error.",
+      "invalid_chat_id": "Enter a chat ID like 1203630123@g.us, 4915112345678@c.us or a phone number.",
+      "node_id_required": "Enter the node to exchange direct messages with.",
+      "invalid_node_id": "Enter a user ID like !a1b2c3d4 or a node number."
+    },
+    "abort": {
+      "already_configured": "This WhatsApp chat is already bridged through this WAHA session."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bridge options",
+        "description": "Webhook for WAHA `message` events: `{webhook_url}`",
+        "data": {
+          "direction": "Direction",
+          "prefix_whatsapp_sender": "Prefix mesh messages with the WhatsApp sender's name",
+          "prefix_mesh_sender": "Prefix WhatsApp messages with the mesh node's name",
+          "long_messages": "WhatsApp messages longer than 200 bytes"
+        },
+        "data_description": {
+          "long_messages": "Meshtastic text messages are limited to 200 bytes including the prefix. Split sends up to 5 numbered packets."
+        }
+      }
+    }
+  },
+  "selector": {
+    "target_type": {
+      "options": {
+        "channel": "A channel of the gateway",
+        "node": "Direct messages with one node"
+      }
+    },
+    "direction": {
+      "options": {
+        "both": "Both directions",
+        "to_mesh": "WhatsApp to mesh only",
+        "to_whatsapp": "Mesh to WhatsApp only"
+      }
+    },
+    "long_messages": {
+      "options": {
+        "split": "Split into several packets",
+        "truncate": "Truncate"
+      }
+    }
+  }
+}
