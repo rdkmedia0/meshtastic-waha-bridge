@@ -30,7 +30,7 @@
           "node_id": "Node"
         },
         "data_description": {
-          "whatsapp_chat_id": "A group ID like 120363012345678901@g.us, a contact like 4915112345678@c.us or a bare phone number. Group IDs are listed by WAHA under GET /api/{session}/groups.",
+          "whatsapp_chat_id": "A group ID like 120363012345678901@g.us, a contact like 4915112345678@c.us or a bare phone number. Group IDs are listed by WAHA under GET /api/<session>/groups.",
           "channel_index": "Index of the channel on the gateway (0 is the primary channel). Only used for a channel target.",
           "node_id": "Meshtastic user ID (e.g. !a1b2c3d4) or node number. Only used for a node target: messages are exchanged as direct messages with this node."
         }
