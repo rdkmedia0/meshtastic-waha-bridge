@@ -185,8 +185,9 @@ class WahaMeshBridge:
         payload = event.get("payload") or {}
         if not isinstance(payload, dict):
             return
-        chat = payload.get("from")
-        if chat != self.chat_id:
+        # for messages sent from the account's own phone WhatsApp puts the chat in "to" and the account in "from"
+        chat = payload.get("to") if payload.get("fromMe") else payload.get("from")
+        if self.chat_id not in (payload.get("from"), payload.get("to")):
             _LOGGER.debug("Ignoring message in chat %s, this bridge is for %s", chat, self.chat_id)
             return
         text = str(payload.get("body") or "").strip()

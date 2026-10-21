@@ -189,7 +189,18 @@ def chat_sent_event_message(
     sent_by = event_data.get("sent_by") or None
     if sent_by and sent_by.startswith(own_prefix):
         return None
-    return sent_by, str(text)
+    text = str(text)
+    # the sender is shown as the label, so drop a sender prefix Mesh Chat or another bridge put in the text
+    text = _strip_prefix(text, event_data.get("prefix"))
+    if sent_by:
+        text = _strip_prefix(text, sent_by.split(": ", 1)[-1])
+    return sent_by, text
+
+
+def _strip_prefix(text: str, prefix: str | None) -> str:
+    if prefix and text.startswith(f"{prefix}: ") and len(text) > len(prefix) + 2:
+        return text[len(prefix) + 2 :]
+    return text
 
 
 class MeshSender:

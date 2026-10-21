@@ -147,6 +147,7 @@ async def test_whatsapp_to_mesh(hass: HomeAssistant, mesh, hass_client_no_auth) 
     # a message typed on the phone WAHA is logged in as
     mine = waha_message("mine from my phone", from_me=True, name=None, participant=None, message_id="7")
     mine["me"] = {"id": "4915100000000@c.us", "pushName": "Steve"}
+    mine["payload"]["from"], mine["payload"]["to"] = "4915100000000@c.us", GROUP  # WhatsApp swaps them for own messages
     assert await post_webhook(client, mine) == HTTPStatus.OK
     await hass.async_block_till_done()
 
@@ -335,6 +336,7 @@ def fire_chat_sent(  # noqa: PLR0913
     channel: int | None = 1,
     to_node: int | None = None,
     message_id: str = "m1",
+    prefix: str | None = None,
 ) -> None:
     hass.bus.async_fire(
         "meshtastic_chat_message_sent",
@@ -344,6 +346,7 @@ def fire_chat_sent(  # noqa: PLR0913
             "message_id": message_id,
             "to": {"node": to_node, "channel": channel},
             "message": text,
+            "prefix": prefix,
             "sent_by": sent_by,
             "status": "sent",
         },
@@ -359,14 +362,16 @@ async def test_messages_sent_from_home_assistant_are_mirrored(hass: HomeAssistan
     fire_chat_sent(hass, gateway, text="Bob: hi", sent_by="WhatsApp: Bob", message_id="2")  # our own, skipped
     fire_chat_sent(hass, gateway, text="Alice: hi", sent_by="Telegram: Alice", message_id="3")  # another bridge
     fire_chat_sent(hass, gateway, text="automation", sent_by=None, message_id="4")
+    fire_chat_sent(hass, gateway, text="Steve S.: prefixed", prefix="Steve S.", message_id="4b")
     fire_chat_sent(hass, gateway, text="other channel", channel=2, message_id="5")
     fire_chat_sent(hass, "other-gateway", text="other gateway", message_id="6")
     await hass.async_block_till_done()
 
     assert [m["text"] for m in sent_to_whatsapp(waha)] == [
         "*Steve Smith*: from the panel",
-        "*Telegram: Alice*: Alice: hi",
+        "*Telegram: Alice*: hi",
         "*!00004904*: automation",
+        "*Steve Smith*: prefixed",
     ]
     assert mesh.sent == []
 
