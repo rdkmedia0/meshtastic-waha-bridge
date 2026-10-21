@@ -81,14 +81,25 @@ def _user_schema(defaults: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _target_schema(defaults: dict[str, Any]) -> vol.Schema:
+def _gateway_selector(hass: HomeAssistant) -> selector.SelectSelector:
+    """Dropdown of the Meshtastic gateways (the config_entry selector cannot be used in flows)."""
+    options = [
+        selector.SelectOptionDict(value=entry.entry_id, label=entry.title)
+        for entry in hass.config_entries.async_entries(MESHTASTIC_DOMAIN)
+    ]
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(options=options, mode=selector.SelectSelectorMode.DROPDOWN)
+    )
+
+
+def _target_schema(hass: HomeAssistant, defaults: dict[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(CONF_WHATSAPP_CHAT_ID, default=defaults.get(CONF_WHATSAPP_CHAT_ID, vol.UNDEFINED)): (
                 selector.TextSelector()
             ),
             vol.Required(CONF_GATEWAY_ENTRY_ID, default=defaults.get(CONF_GATEWAY_ENTRY_ID, vol.UNDEFINED)): (
-                selector.ConfigEntrySelector({"integration": MESHTASTIC_DOMAIN})
+                _gateway_selector(hass)
             ),
             vol.Required(CONF_TARGET_TYPE, default=defaults.get(CONF_TARGET_TYPE, TARGET_CHANNEL)): (
                 selector.SelectSelector(
@@ -192,6 +203,8 @@ class MeshtasticWahaBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
         self._data: dict[str, Any] = {}
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if not self.hass.config_entries.async_entries(MESHTASTIC_DOMAIN):
+            return self.async_abort(reason="no_gateway")
         errors: dict[str, str] = {}
         if user_input is not None:
             if not user_input.get(CONF_ACKNOWLEDGED):
@@ -235,7 +248,9 @@ class MeshtasticWahaBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured()
                 self._data = {**self._connection, **data, CONF_WEBHOOK_ID: webhook.async_generate_id()}
                 return await self.async_step_webhook()
-        return self.async_show_form(step_id="target", data_schema=_target_schema(user_input or {}), errors=errors)
+        return self.async_show_form(
+            step_id="target", data_schema=_target_schema(self.hass, user_input or {}), errors=errors
+        )
 
     async def async_step_webhook(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:

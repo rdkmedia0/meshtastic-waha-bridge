@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.meshtastic_waha_bridge.config_flow import normalise_chat_id
 from custom_components.meshtastic_waha_bridge.const import (
@@ -35,6 +36,20 @@ if TYPE_CHECKING:
 def no_setup():
     with patch("custom_components.meshtastic_waha_bridge.async_setup_entry", AsyncMock(return_value=True)):
         yield
+
+
+@pytest.fixture(autouse=True)
+def gateway_entry(hass: HomeAssistant, request) -> None:
+    if "no_gateway" in request.keywords:
+        return
+    MockConfigEntry(domain="meshtastic", entry_id="gateway-entry", title="Home Gateway").add_to_hass(hass)
+
+
+@pytest.mark.no_gateway
+async def test_abort_without_gateway(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert result["type"] == "abort"
+    assert result["reason"] == "no_gateway"
 
 
 CONNECTION = {
@@ -96,7 +111,7 @@ async def test_full_flow(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input=CONNECTION)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={CONF_WHATSAPP_CHAT_ID: GROUP, CONF_GATEWAY_ENTRY_ID: "x", CONF_TARGET_TYPE: "channel"},
+        user_input={CONF_WHATSAPP_CHAT_ID: GROUP, CONF_GATEWAY_ENTRY_ID: "gateway-entry", CONF_TARGET_TYPE: "channel"},
     )
     assert result["type"] == "abort"
     assert result["reason"] == "already_configured"
@@ -127,7 +142,11 @@ async def test_target_errors(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(result["flow_id"], user_input=CONNECTION)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        user_input={CONF_WHATSAPP_CHAT_ID: "not a chat", CONF_GATEWAY_ENTRY_ID: "g", CONF_TARGET_TYPE: "node"},
+        user_input={
+            CONF_WHATSAPP_CHAT_ID: "not a chat",
+            CONF_GATEWAY_ENTRY_ID: "gateway-entry",
+            CONF_TARGET_TYPE: "node",
+        },
     )
     assert result["errors"] == {CONF_WHATSAPP_CHAT_ID: "invalid_chat_id", CONF_NODE_ID: "node_id_required"}
 
@@ -135,7 +154,7 @@ async def test_target_errors(hass: HomeAssistant) -> None:
         result["flow_id"],
         user_input={
             CONF_WHATSAPP_CHAT_ID: "+49 151 12345678",
-            CONF_GATEWAY_ENTRY_ID: "g",
+            CONF_GATEWAY_ENTRY_ID: "gateway-entry",
             CONF_TARGET_TYPE: "node",
             CONF_NODE_ID: "!a1b2c3d4",
         },

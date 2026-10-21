@@ -51,7 +51,8 @@
       "invalid_node_id": "Enter a user ID like !a1b2c3d4 or a node number."
     },
     "abort": {
-      "already_configured": "This WhatsApp chat is already bridged through this WAHA session."
+      "already_configured": "This WhatsApp chat is already bridged through this WAHA session.",
+      "no_gateway": "Set up the Meshtastic integration with a gateway first."
     }
   },
   "options": {
