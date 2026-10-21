@@ -1,4 +1,4 @@
-<p align="center"><img src="brand/logo.png" alt="Meshtastic WAHA Bridge" width="520"></p>
+<p align="center"><img src="custom_components/meshtastic_waha_bridge/brand/logo.png" alt="Meshtastic WAHA Bridge" width="520"></p>
 
 # Meshtastic WAHA Bridge
 
@@ -218,4 +218,4 @@ restart.
 
 ## License
 
-MIT. Icon and logo in `brand/` are part of this repository and may be used to reference the integration.
+MIT. Icon and logo in `custom_components/meshtastic_waha_bridge/brand/` are part of this repository and may be used to reference the integration.
