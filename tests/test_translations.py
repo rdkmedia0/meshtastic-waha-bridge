@@ -32,3 +32,5 @@ def test_placeholders_are_provided() -> None:
         for path, text in _strings(data):
             placeholders = set(re.findall(r"\{([^}]*)\}", text))
             assert placeholders <= ALLOWED.get(path, set()), f"{file.name}: {path} uses {placeholders}"
+            # "<name>" is parsed as a tag by the frontend and breaks the whole string
+            assert "<" not in text, f"{file.name}: {path} contains an angle bracket"

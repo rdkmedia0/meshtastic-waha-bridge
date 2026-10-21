@@ -53,8 +53,8 @@ WAHA_MESSAGE_EVENTS: Final = ("message", "message.any")
 WAHA_HMAC_HEADER: Final = "X-Webhook-Hmac"
 WAHA_TIMEOUT: Final = 15
 
-# shown in front of the node name for messages that came over the radio
-MESH_SENDER_EMOJI: Final = "\U0001f6f0\ufe0f"
+# shown in front of the node name for messages that came over the mesh (satellite antenna)
+MESH_SENDER_EMOJI: Final = "\U0001f4e1"
 
 # Meshtastic text messages are limited to 200 bytes (including any prefix)
 MAX_TEXT_BYTES: Final = 200

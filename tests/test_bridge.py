@@ -227,16 +227,14 @@ async def test_mesh_to_whatsapp(hass: HomeAssistant, mesh, waha, hass_client_no_
     await hass.async_block_till_done()
 
     assert sent_to_whatsapp(waha) == [
-        {"session": "default", "chatId": GROUP, "text": "*\U0001f6f0\ufe0f Anna Hiking*: hello"}
+        {"session": "default", "chatId": GROUP, "text": "*\U0001f4e1 Anna Hiking*: hello"}
     ]
     headers = next(call[3] for call in waha.mock_calls if call[0] == "POST")
     assert headers["X-Api-Key"] == "key"
 
     # WAHA reports the message the bridge just posted as fromMe: it must not be forwarded back to the mesh
     client = await hass_client_no_auth()
-    echo = waha_message(
-        "*\U0001f6f0\ufe0f Anna Hiking*: hello", from_me=True, name=None, participant=None, message_id="echo"
-    )
+    echo = waha_message("*\U0001f4e1 Anna Hiking*: hello", from_me=True, name=None, participant=None, message_id="echo")
     assert await post_webhook(client, echo) == HTTPStatus.OK
     await hass.async_block_till_done()
     assert mesh.sent == []
@@ -270,7 +268,7 @@ async def test_node_target_and_direction(hass: HomeAssistant, mesh, waha, hass_c
     assert mesh.sent == [
         {"from": str(GATEWAY), "to": str(ANNA), "text": "Alice: ping", "ack": False, "sent_by": "WhatsApp: Alice"}
     ]
-    assert [m["text"] for m in sent_to_whatsapp(waha)] == ["*\U0001f6f0\ufe0f Bob Builder*: pong"]
+    assert [m["text"] for m in sent_to_whatsapp(waha)] == ["*\U0001f4e1 Bob Builder*: pong"]
 
 
 async def test_direction_options(hass: HomeAssistant, mesh, waha, hass_client_no_auth) -> None:
@@ -376,11 +374,12 @@ async def test_messages_sent_from_home_assistant_are_mirrored(hass: HomeAssistan
     fire_chat_sent(hass, "other-gateway", text="other gateway", message_id="6")
     await hass.async_block_till_done()
 
+    # everything sent from Home Assistant goes out from the gateway, so it is shown like a mesh message
     assert [m["text"] for m in sent_to_whatsapp(waha)] == [
-        "*Steve Smith*: from the panel",
-        "*Telegram: Alice*: hi",
-        "*!00004904*: automation",
-        "*Steve Smith*: prefixed",
+        "*\U0001f4e1 !00004904*: from the panel",
+        "*\U0001f4e1 !00004904*: Alice: hi",
+        "*\U0001f4e1 !00004904*: automation",
+        "*\U0001f4e1 !00004904*: Steve S.: prefixed",
     ]
     assert mesh.sent == []
 

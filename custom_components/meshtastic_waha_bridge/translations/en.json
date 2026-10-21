@@ -30,7 +30,7 @@
           "node_id": "Node"
         },
         "data_description": {
-          "whatsapp_chat_id": "A group ID like 120363012345678901@g.us, a contact like 4915112345678@c.us or a bare phone number. Group IDs are listed by WAHA under GET /api/<session>/groups.",
+          "whatsapp_chat_id": "A group ID like 120363012345678901@g.us, a contact like 4915112345678@c.us or a bare phone number. Group IDs are listed by WAHA under GET /api/default/groups (replace default with your session name).",
           "channel_index": "Index of the channel on the gateway (0 is the primary channel). Only used for a channel target.",
           "node_id": "Meshtastic user ID (e.g. !a1b2c3d4) or node number. Only used for a node target: messages are exchanged as direct messages with this node."
         }
@@ -50,7 +50,7 @@
       "session_not_found": "This session does not exist in WAHA. Start and pair it first.",
       "unknown": "WAHA answered with an unexpected error.",
       "invalid_chat_id": "Enter a chat ID like 1203630123@g.us, 4915112345678@c.us or a phone number.",
-      "invalid_webhook_id": "Enter a webhook ID or a URL like https://your-home-assistant/api/webhook/<id>.",
+      "invalid_webhook_id": "Enter a webhook ID or a URL like https://your-home-assistant/api/webhook/ID.",
       "webhook_in_use": "This webhook is already handled by another integration or an enabled automation. Disable that automation first, or use a different ID.",
       "node_id_required": "Enter the node to exchange direct messages with.",
       "invalid_node_id": "Enter a user ID like !a1b2c3d4 or a node number."

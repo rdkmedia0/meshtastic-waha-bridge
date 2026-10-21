@@ -294,10 +294,11 @@ class WahaMeshBridge:
         if key in self._seen:
             return
         self._seen.append(key)
-        sent_by, text = match
-        label = sent_by or node_display_name(self.hass, self.sender.gateway_num, self.entry.data[CONF_GATEWAY_ENTRY_ID])
+        _, text = match
+        # messages sent from Home Assistant go out from the gateway node, so they are shown like any mesh message
         if self.entry.options.get(CONF_PREFIX_MESH_SENDER, DEFAULT_PREFIX_MESH_SENDER):
-            message = f"*{label}*: {text}"
+            name = node_display_name(self.hass, self.sender.gateway_num, self.entry.data[CONF_GATEWAY_ENTRY_ID])
+            message = f"*{MESH_SENDER_EMOJI} {name}*: {text}"
         else:
             message = text
         self._enqueue(lambda: self._async_send_whatsapp(message))
