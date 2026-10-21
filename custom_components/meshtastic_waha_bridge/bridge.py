@@ -46,7 +46,8 @@ from .mesh import MeshSender, MeshTarget, mesh_event_message, node_display_name,
 from .waha import WahaError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
+    import asyncio
+    from collections.abc import Awaitable, Callable, Mapping
 
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import Event, HomeAssistant
@@ -86,6 +87,9 @@ class WahaMeshBridge:
         self._webhook_registered = False
         self._seen: deque[Any] = deque(maxlen=DEDUPLICATE_WINDOW)
         self._names: dict[str, str] = {}
+        # messages are forwarded one after the other, in the order they arrived
+        self._outbox: deque[Callable[[], Awaitable[None]]] = deque()
+        self._drain_task: asyncio.Task[None] | None = None
 
     @property
     def direction(self) -> str:
@@ -113,6 +117,24 @@ class WahaMeshBridge:
         if self._webhook_registered:
             webhook.async_unregister(self.hass, self.webhook_id)
             self._webhook_registered = False
+        self._outbox.clear()
+        if self._drain_task is not None and not self._drain_task.done():
+            self._drain_task.cancel()
+        self._drain_task = None
+
+    @callback
+    def _enqueue(self, job: Callable[[], Awaitable[None]]) -> None:
+        self._outbox.append(job)
+        if self._drain_task is None or self._drain_task.done():
+            self._drain_task = self.hass.async_create_task(self._async_drain(), name=f"{self.entry.title} forward")
+
+    async def _async_drain(self) -> None:
+        while self._outbox:
+            job = self._outbox.popleft()
+            try:
+                await job()
+            except Exception:
+                _LOGGER.exception("Unexpected error while forwarding a message")
 
     # ---------- WhatsApp -> mesh ----------
 
@@ -129,7 +151,7 @@ class WahaMeshBridge:
         except ValueError:
             return web.Response(status=HTTPStatus.BAD_REQUEST, text="invalid json")
         if isinstance(event, dict):
-            await self._async_process_waha_event(event)
+            self._enqueue(lambda: self._async_process_waha_event(event))
         return web.Response(status=HTTPStatus.OK, text="ok")
 
     async def _async_process_waha_event(self, event: Mapping[str, Any]) -> None:
@@ -208,7 +230,7 @@ class WahaMeshBridge:
             message = f"*{node_display_name(self.hass, from_id)}*: {text}"
         else:
             message = text
-        self.hass.async_create_task(self._async_send_whatsapp(message))
+        self._enqueue(lambda: self._async_send_whatsapp(message))
 
     async def _async_send_whatsapp(self, message: str) -> None:
         try:
